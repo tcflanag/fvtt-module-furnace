@@ -103,37 +103,72 @@ class FurnaceSplitJournal extends FormApplication {
             }
             folder = await Folder.create(folderData)
         }
-        let parts = splitHtml(this.content, formData.splitter)
-        let header = ""
+        
+        let outer_parts = splitHtml(this.content, "h3")
         let journalEntries = []
-        for (let idx = 0; idx < parts.length; idx++) {
+        let outer_header = ""
+        let outer_name = ""
+        for (let outer_idx = 0; outer_idx < outer_parts.length; outer_idx++) {
+            console.log("----1")
+            
+            
 
-            let name = this.object.name
-            let content = parts[idx];
-
-            if (idx == 0) {
-                name = "Header"
-                header = content.trim();
-                if (header == "" || formData.separateHeader)
+            
+            
+            let outer_content = outer_parts[outer_idx]
+            if (outer_idx == 0) {
+                outer_name = "Header"
+                outer_header = outer_content.trim();
+                if (outer_header == "" || formData.separateHeader)
                     continue;
+
             } else {
-                name = $(parts[idx]).text()
-                content += parts[++idx]
+                outer_name = $(outer_parts[outer_idx]).text()
+                outer_content += outer_parts[++outer_idx]
                 if (formData.separateHeader)
-                    content = header + content;
+                outer_content = outer_header + outer_content;
             }
-            let img = ""
-            if (formData.includeImage)
-                img = this.object.data.img
-            journalEntries.push({
-                "name": name || " ",
-                "permission": this.object.data.permission,
-                "flags": { "entityorder": { "order": idx * 100000 } },
-                "folder": folder ? folder.id : null,
-                "entryTime": this.object.data.entryTime,
-                "img": img,
-                "content": content
-            })
+            console.log("OUTER",outer_idx,outer_content.substring(0, 50))
+            let parts = splitHtml(outer_content, "h4")
+            let header = ""
+            if (parts.length == 0) {
+                parts = [outer_content]
+            }
+            for (let idx = 0; idx < parts.length; idx++) {
+                
+                let name = this.object.name
+                let content = parts[idx];
+                console.log("INNER",idx,content.substring(0, 50))
+                if (idx == 0 && parts.length >1) {
+                    name = "Header"
+                    header = content.trim();
+                    if (header == "" || formData.separateHeader){
+                        console.log("CUTOUT")
+                        continue;
+                    }
+                } else {
+                    if (parts.length == 1 ) // For single layers, grab the parent
+                        name = outer_name
+                    else
+                        name = $(parts[idx]).text()
+                    content += parts[++idx]
+                    if (formData.separateHeader)
+                        content = header + content;
+                }
+                
+                let img = ""
+                if (formData.includeImage)
+                    img = this.object.data.img
+                journalEntries.push({
+                    "name": name || " ",
+                    "permission": this.object.data.permission,
+                    "flags": { "entityorder": { "order": idx * 100000 } },
+                    "folder": folder ? folder.id : null,
+                    "entryTime": this.object.data.entryTime,
+                    "img": img,
+                    "content": content
+                })
+            }
         }
         if (journalEntries.length > 0)
             return JournalEntry.create(journalEntries, { displaySheet: false })
